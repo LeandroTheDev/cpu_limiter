@@ -13,7 +13,7 @@ for example a CPU with 8 threads the max limit is 800, leave 0 for no limitation
 - CPULimitOutStandby: the percentage to limit when not in standby, leave it 0 for no limitations
 - ProcessName: Simple process name for unturned server, if for some reason your server has a different process 
 name ensure its unique, or leave blank if you want the full path, only use this if you have a unique server in the 
-same user if you have more please us the ProcessPath instead and live this empty ``<ProcessName />``
+same user if you have more please use the ProcessPath instead and leave this empty ``<ProcessName />``
 - ProcessPath: Full process path, CPULimiter will limit this exactly process
 - DebugProcess: With this you can check what process the CPULimiter can find into your currently user
 
