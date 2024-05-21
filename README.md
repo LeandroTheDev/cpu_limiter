@@ -17,7 +17,7 @@ same user if you have more please us the ProcessPath instead and live this empty
 - ProcessPath: Full process path, CPULimiter will limit this exactly process
 - DebugProcess: With this you can check what process the CPULimiter can find into your currently user
 
-Requirements:
+### Requirements:
 - cpulimit (linux)
 
 # Issues
