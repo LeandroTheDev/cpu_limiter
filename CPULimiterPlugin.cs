@@ -12,7 +12,6 @@ namespace CPULimiter
     {
         private static Process? cpuLimit;
         private readonly List<string> playersOnline = new();
-        private bool standbyState = false;
         private bool isInitializating = true;
         public override void LoadPlugin()
         {
@@ -35,7 +34,6 @@ namespace CPULimiter
             {
                 try
                 {
-
                     if (Configuration.Instance.DebugProcess) Logger.Log($"[CPULimiter] {process.ProcessName}");
                     if (Configuration.Instance.ProcessName != null && process.ProcessName.Contains(Configuration.Instance.ProcessName.ToString()))
                     {
@@ -70,8 +68,8 @@ namespace CPULimiter
             Task.Delay(Configuration.Instance.SecondsFirstStandby * 1000).ContinueWith((_) =>
             {
                 isInitializating = false;
-                if (playersOnline.Count == 0 && Configuration.Instance.CPULimitInStandby != 0)
-                    EnableCPUStandby(Configuration.Instance.CPULimitInStandby, true);
+                if (playersOnline.Count == 0 && Configuration.Instance.CPULimitInStandby > -1)
+                    EnableCPUStandby(Configuration.Instance.CPULimitInStandby);
             });
             // Timer for checking online players
             new Timer(CheckForPlayers, null, 0, Configuration.Instance.SecondsCheckNoPlayers * 1000);
@@ -80,30 +78,31 @@ namespace CPULimiter
             Rocket.Unturned.U.Events.OnPlayerDisconnected += OnPlayerDisconnected;
         }
 
-        private void OnPlayerDisconnected(UnturnedPlayer player)
-        {
-            playersOnline.Remove(player.Id);
-        }
-        private void OnPlayerConnected(UnturnedPlayer player)
-        {
-            playersOnline.Add(player.Id);
-        }
+        private void OnPlayerDisconnected(UnturnedPlayer player) => playersOnline.Remove(player.Id);
+        private void OnPlayerConnected(UnturnedPlayer player) => playersOnline.Add(player.Id);
+
         private void CheckForPlayers(object state)
         {
             // If no players enter in standby
-            if (playersOnline.Count == 0 && !standbyState && !isInitializating && Configuration.Instance.CPULimitInStandby != 0)
+            if (playersOnline.Count == 0 && !CPULimiterTools.IsStandByMode && !isInitializating && Configuration.Instance.CPULimitInStandby > -1)
             {
                 Logger.Log("[CPULimiter] No players detected entering in standby");
-                EnableCPUStandby(Configuration.Instance.CPULimitInStandby, true);
+                EnableCPUStandby(Configuration.Instance.CPULimitInStandby);
+            } 
+            // If have players enter in out standby
+            else if (playersOnline.Count > 0 && CPULimiterTools.IsStandByMode && Configuration.Instance.CPULimitOutStandby > -1) {
+                Logger.Log("[CPULimiter] Players detected entering in out standby");
+                EnableCPUOutStandby(Configuration.Instance.CPULimitOutStandby);
             }
         }
-        private void PlayerTryingToConnect(CSteamID player, ref ESteamRejection? rejectionReason)
+        // Event for player trying to connect
+        private void PlayerTryingToConnect(CSteamID player, ref ESteamRejection? rejectionReason) => DisableCPUStandby();
+
+        // Enable the cpulimiter to the currently unturned process id
+        private void EnableCPUStandby(int amount)
         {
-            if (standbyState && Configuration.Instance.CPULimitInStandby != 0)
-                DisableCPUStandby();
-        }
-        private void EnableCPUStandby(int amount, bool _standbyState)
-        {
+            if (CPULimiterTools.IsStandByMode) return;
+
             cpuLimit?.Close();
             cpuLimit?.Dispose();
 
@@ -131,25 +130,68 @@ namespace CPULimiter
             cpuLimit.BeginOutputReadLine();
             cpuLimit.BeginErrorReadLine();
 
-            standbyState = _standbyState;
-            CPULimiterTools.IsStandByMode = standbyState;
+            CPULimiterTools.IsStandByMode = true;
 
             Logger.Log($"[CPULimiter] CPU Limited to {amount}");
         }
+
+        // Disable and dispose the cpu limit process, enable the cpu out standby if enabled
         private void DisableCPUStandby()
         {
-            // Check if theres limitation without standby
-            if (Configuration.Instance.CPULimitOutStandby != 0)
-                EnableCPUStandby(Configuration.Instance.CPULimitOutStandby, false);
-            // Otherwise just dispose the cpu limitation
-            else
-            {
-                cpuLimit?.Close();
-                cpuLimit?.Dispose();
-                cpuLimit = null;
-                standbyState = false;
-                CPULimiterTools.IsStandByMode = false;
-            };
+            cpuLimit?.Close();
+            cpuLimit?.Dispose();
+            cpuLimit = null;
+            CPULimiterTools.IsStandByMode = false;
+            if (Configuration.Instance.CPULimitOutStandby > -1)
+                EnableCPUOutStandby(Configuration.Instance.CPULimitOutStandby);
+        }
+
+        // Enable Limitation while without standby
+        private void EnableCPUOutStandby(int amount)
+        {
+            if (!CPULimiterTools.IsStandByMode) return;
+
+            cpuLimit?.Close();
+            cpuLimit?.Dispose();
+
+            // Command
+            string command = $"cpulimit -p {CPULimiterTools.UnturnedProcessId} -l {amount}";
+            if (Configuration.Instance.DebugProcess) Logger.Log($"[CPULimiter] Executing the command: {command}");
+
+            // Create the process
+            cpuLimit = new();
+            cpuLimit.StartInfo.FileName = "/bin/bash";
+            cpuLimit.StartInfo.Arguments = $"-c \"{command}\"";
+            cpuLimit.StartInfo.RedirectStandardOutput = true;
+            cpuLimit.StartInfo.RedirectStandardError = true;
+            cpuLimit.StartInfo.UseShellExecute = false;
+            cpuLimit.StartInfo.CreateNoWindow = true;
+
+            // Process output
+            cpuLimit.OutputDataReceived += (sender, args) => Logger.Log($"[CPULimiter] cpulimit output: {args.Data}");
+            cpuLimit.ErrorDataReceived += (sender, args) => Logger.LogError($"[CPULimiter] cpulimit error: {args.Data}");
+
+            // Start the process
+            cpuLimit.Start();
+
+            // Read the process output and error
+            cpuLimit.BeginOutputReadLine();
+            cpuLimit.BeginErrorReadLine();
+
+            CPULimiterTools.IsStandByMode = false;
+
+            Logger.Log($"[CPULimiter] CPU Limited to {amount}");
+        }
+
+        // Disable and dispose the cpu limit process for not in standby, enable the cpu standby if enabled
+        private void DisableCPUOutStandby()
+        {
+            cpuLimit?.Close();
+            cpuLimit?.Dispose();
+            cpuLimit = null;
+            CPULimiterTools.IsStandByMode = true;
+            if (Configuration.Instance.CPULimitInStandby > -1)
+                EnableCPUStandby(Configuration.Instance.CPULimitOutStandby);
         }
     }
 

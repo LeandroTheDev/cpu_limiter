@@ -5,7 +5,7 @@ namespace CPULimiter
     public class CPULimiterConfiguration : IRocketPluginConfiguration
     {
         public int CPULimitInStandby = 5;
-        public int CPULimitOutStandby = 0;
+        public int CPULimitOutStandby = -1;
         public int SecondsCheckNoPlayers = 60;
         public int SecondsFirstStandby = 20;
         public string? ProcessName = "Unturned_Headless.x86_64";
