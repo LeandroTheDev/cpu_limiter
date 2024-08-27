@@ -22,7 +22,7 @@ namespace CPULimiter
                 base.UnloadPlugin();
                 return;
             }
-            Logger.Log("CPULimiter by LeandroTheDev");
+            Logger.Log("CPULimiter from github.com/LeandroTheDev/cpu_limiter");
             UnturnedPermissions.OnJoinRequested += PlayerTryingToConnect;
 
             //  Get all process running on the system
@@ -78,25 +78,44 @@ namespace CPULimiter
             Rocket.Unturned.U.Events.OnPlayerDisconnected += OnPlayerDisconnected;
         }
 
-        private void OnPlayerDisconnected(UnturnedPlayer player) => playersOnline.Remove(player.Id);
-        private void OnPlayerConnected(UnturnedPlayer player) => playersOnline.Add(player.Id);
+        private void OnPlayerDisconnected(UnturnedPlayer player)
+        {
+            playersOnline.Remove(player.Id);
+            CheckForPlayers(null);
+        }
+        private void OnPlayerConnected(UnturnedPlayer player)
+        {
+            playersOnline.Add(player.Id);
+            CheckForPlayers(null);
+        }
 
-        private void CheckForPlayers(object state)
+        private void CheckForPlayers(object? state)
         {
             // If no players enter in standby
             if (playersOnline.Count == 0 && !CPULimiterTools.IsStandByMode && !isInitializating && Configuration.Instance.CPULimitInStandby > -1)
             {
                 Logger.Log("[CPULimiter] No players detected entering in standby");
                 EnableCPUStandby(Configuration.Instance.CPULimitInStandby);
-            } 
+            }
             // If have players enter in out standby
-            else if (playersOnline.Count > 0 && CPULimiterTools.IsStandByMode && Configuration.Instance.CPULimitOutStandby > -1) {
+            else if (playersOnline.Count > 0 && CPULimiterTools.IsStandByMode && Configuration.Instance.CPULimitOutStandby > -1)
+            {
                 Logger.Log("[CPULimiter] Players detected entering in out standby");
                 EnableCPUOutStandby(Configuration.Instance.CPULimitOutStandby);
             }
+            // If no players and out standyby disabled
+            else if (playersOnline.Count > 0 && CPULimiterTools.IsStandByMode)
+            {
+                Logger.Log("[CPULimiter] Players detected disabling cpulimit");
+                DisableCPUStandby();
+            }
         }
         // Event for player trying to connect
-        private void PlayerTryingToConnect(CSteamID player, ref ESteamRejection? rejectionReason) => DisableCPUStandby();
+        private void PlayerTryingToConnect(CSteamID player, ref ESteamRejection? rejectionReason)
+        {
+            Logger.Log("[CPULimiter] Player trying to connect to the server, disabling cpulimit");
+            DisableCPUStandby();
+        }
 
         // Enable the cpulimiter to the currently unturned process id
         private void EnableCPUStandby(int amount)

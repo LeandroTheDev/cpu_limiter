@@ -4,7 +4,7 @@ namespace CPULimiter
 {
     public class CPULimiterConfiguration : IRocketPluginConfiguration
     {
-        public int CPULimitInStandby = 5;
+        public int CPULimitInStandby = 100;
         public int CPULimitOutStandby = -1;
         public int SecondsCheckNoPlayers = 60;
         public int SecondsFirstStandby = 20;

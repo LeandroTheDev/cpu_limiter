@@ -36,6 +36,8 @@ This is completly unecessary and you can ignore that, view the issue below to kn
 Server with high amount of ping while standby: this is caused because the thread that connects to the steam api is embed up within the unturned server process,
 unfortunately theres is not i can do to fix that, unless the unturned developer makes a better idle system or divide the unturned server process and steam connection process.
 
+Setting the cpu too low can make players struggling to connect, my recommendation is to set half the cpu used in idle
+
 # Building
 
 *Windows*: The project uses dotnet 4.8, consider installing into your machine, you need visual studio, 
