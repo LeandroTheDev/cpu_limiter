@@ -122,6 +122,7 @@ namespace CPULimiter
         {
             if (CPULimiterTools.IsStandByMode) return;
 
+            cpuLimit?.Kill();
             cpuLimit?.Close();
             cpuLimit?.Dispose();
 
@@ -157,6 +158,7 @@ namespace CPULimiter
         // Disable and dispose the cpu limit process, enable the cpu out standby if enabled
         private void DisableCPUStandby()
         {
+            cpuLimit?.Kill();
             cpuLimit?.Close();
             cpuLimit?.Dispose();
             cpuLimit = null;
@@ -170,6 +172,7 @@ namespace CPULimiter
         {
             if (!CPULimiterTools.IsStandByMode) return;
 
+            cpuLimit?.Kill();
             cpuLimit?.Close();
             cpuLimit?.Dispose();
 
@@ -205,6 +208,7 @@ namespace CPULimiter
         // Disable and dispose the cpu limit process for not in standby, enable the cpu standby if enabled
         private void DisableCPUOutStandby()
         {
+            cpuLimit?.Kill();
             cpuLimit?.Close();
             cpuLimit?.Dispose();
             cpuLimit = null;
