@@ -25,36 +25,44 @@ namespace CPULimiter
             Logger.Log("CPULimiter from github.com/LeandroTheDev/cpu_limiter");
             UnturnedPermissions.OnJoinRequested += PlayerTryingToConnect;
 
-            //  Get all process running on the system
-            Process[] processes = Process.GetProcesses();
-
-            // Swipe every process
-            if (Configuration.Instance.DebugProcess) Logger.Log("[CPULimiter] -----Process-----");
-            foreach (Process process in processes)
+            if (!Configuration.Instance.GetCurrentlyProcess)
             {
-                try
+
+                //  Get all process running on the system
+                Process[] processes = Process.GetProcesses();
+
+                // Swipe every process
+                if (Configuration.Instance.DebugProcess) Logger.Log("[CPULimiter] -----Process-----");
+                foreach (Process process in processes)
                 {
-                    if (Configuration.Instance.DebugProcess) Logger.Log($"[CPULimiter] {process.ProcessName}");
-                    if (Configuration.Instance.ProcessName != null && process.ProcessName.Contains(Configuration.Instance.ProcessName.ToString()))
+                    try
                     {
-                        // Check if the process already exist
-                        if (CPULimiterTools.UnturnedProcessId != null)
-                            Logger.LogWarning("[CPULimiter] Two process with the same ProcessName have been found, please ensure the ProcessName is unique into your user or consider using the ProcessPath instead, you can check the process using the configuration DebugProcess");
-                        CPULimiterTools.UnturnedProcessId = process.Id;
+                        if (Configuration.Instance.DebugProcess)
+                        {
+                            Logger.Log($"[CPULimiter] {process.ProcessName}");
+                        }
+                        else if (Configuration.Instance.ProcessPath != null && process.ProcessName.ToString() == Configuration.Instance.ProcessPath.ToString())
+                        {
+                            // Check if the process already exist
+                            if (CPULimiterTools.UnturnedProcessId != null)
+                                Logger.LogWarning("[CPULimiter] Two process with the same ProcessPath have been found, check your configuration probably you forget to change the ProcessPath to your new server, please ensure the ProcessPath is unique into your user, you can check the process using the configuration DebugProcess");
+                            CPULimiterTools.UnturnedProcessId = process.Id;
+                        }
+                        else if (Configuration.Instance.ProcessName != null && process.ProcessName.Contains(Configuration.Instance.ProcessName.ToString()))
+                        {
+                            // Check if the process already exist
+                            if (CPULimiterTools.UnturnedProcessId != null)
+                                Logger.LogWarning("[CPULimiter] Two process with the same ProcessName have been found, please ensure the ProcessName is unique into your user or consider using the ProcessPath instead, you can check the process using the configuration DebugProcess");
+                            CPULimiterTools.UnturnedProcessId = process.Id;
+                        }
                     }
-                    else if (Configuration.Instance.ProcessPath != null && process.ProcessName.ToString() == Configuration.Instance.ProcessPath.ToString())
+                    catch (Exception ex)
                     {
-                        // Check if the process already exist
-                        if (CPULimiterTools.UnturnedProcessId != null)
-                            Logger.LogWarning("[CPULimiter] Two process with the same ProcessPath have been found, check your configuration probably you forget to change the ProcessPath to your new server, please ensure the ProcessPath is unique into your user, you can check the process using the configuration DebugProcess");
-                        CPULimiterTools.UnturnedProcessId = process.Id;
+                        Logger.LogError($"[CPULimiter] Cannot read the process reason: {ex.Message}");
                     }
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError($"[CPULimiter] Cannot read the process reason: {ex.Message}");
                 }
             }
+            else CPULimiterTools.UnturnedProcessId = Process.GetCurrentProcess().Id;
 
             // Check if process exist
             if (CPULimiterTools.UnturnedProcessId == null)
@@ -63,6 +71,7 @@ namespace CPULimiter
                 base.UnloadPlugin();
                 return;
             }
+            else Logger.Log($"[CPULimiter] CPULimiter will limit the process with the PID: {CPULimiterTools.UnturnedProcessId}, consider checking if this is the valid process");
 
             // Entering in standby
             Task.Delay(Configuration.Instance.SecondsFirstStandby * 1000).ContinueWith((_) =>
@@ -113,8 +122,11 @@ namespace CPULimiter
         // Event for player trying to connect
         private void PlayerTryingToConnect(CSteamID player, ref ESteamRejection? rejectionReason)
         {
-            Logger.Log("[CPULimiter] Player trying to connect to the server, disabling cpulimit");
-            DisableCPUStandby();
+            if (cpuLimit != null)
+            {
+                Logger.Log("[CPULimiter] Player trying to connect to the server, disabling standby");
+                DisableCPUStandby();
+            }
         }
 
         // Enable the cpulimiter to the currently unturned process id

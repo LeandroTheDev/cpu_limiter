@@ -12,10 +12,9 @@ low on initialization the server will hang so much to open
 - CPULimitInStandby: the percentage to limit (does not accept float numbers), the percentage is variable by the amount of threads in your CPU
 for example a CPU with 8 threads the max limit is 800, leave -1 for no limitations
 - CPULimitOutStandby: the percentage to limit when not in standby, leave it -1 for no limitations
-- ProcessName: Simple process name for unturned server, if for some reason your server has a different process 
-name ensure its unique, or leave blank if you want the full path, only use this if you have a unique server in the 
-same user if you have more please use the ProcessPath instead and leave this empty ``<ProcessName />``
-- ProcessPath: Full process path, CPULimiter will limit this exactly process
+- GetCurrentlyProcess: This is the best option, the plugin will get the PID from the currently running proccess automatically
+- ProcessName: Less recommended, the plugin will find all process on your system with this process name, and will limit them
+- ProcessPath: Full process path, CPULimiter will limit this exactly process, if you run 2 servers at once in the same dedicated server this will not work properly, the best option is GetCurrentlyProcess, use this only in case that GetCurrentlyProcess is not working for some reason
 - DebugProcess: With this you can check what process the CPULimiter can find into your currently user
 
 ### Requirements
