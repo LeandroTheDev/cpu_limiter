@@ -1,10 +1,12 @@
-﻿using Rocket.Core.Logging;
+﻿﻿extern alias UnityEngineCoreModule;
+using Rocket.Core.Logging;
 using Rocket.Core.Plugins;
 using Rocket.Unturned.Permissions;
 using Rocket.Unturned.Player;
 using SDG.Unturned;
 using Steamworks;
 using System.Diagnostics;
+using UnityCoreModule = UnityEngineCoreModule.UnityEngine;
 
 namespace CPULimiter
 {
@@ -164,7 +166,10 @@ namespace CPULimiter
 
             CPULimiterTools.IsStandByMode = true;
 
-            Logger.Log($"[CPULimiter] CPU Limited to {amount}");
+            UnityEngine.Application.targetFrameRate = Configuration.Instance.TickrateInStandby;
+            UnityCoreModule.Application.targetFrameRate = Configuration.Instance.TickrateInStandby;
+
+            Logger.Log($"[CPULimiter] CPU Limited to {amount}, Tickrate: {Configuration.Instance.TickrateInStandby}");
         }
 
         // Disable and dispose the cpu limit process, enable the cpu out standby if enabled
@@ -175,6 +180,8 @@ namespace CPULimiter
             cpuLimit?.Dispose();
             cpuLimit = null;
             CPULimiterTools.IsStandByMode = false;
+            UnityEngine.Application.targetFrameRate = Configuration.Instance.TickrateOutStandby;
+            UnityCoreModule.Application.targetFrameRate = Configuration.Instance.TickrateOutStandby;
             if (Configuration.Instance.CPULimitOutStandby > -1)
                 EnableCPUOutStandby(Configuration.Instance.CPULimitOutStandby);
         }
