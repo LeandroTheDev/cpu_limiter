@@ -1,4 +1,5 @@
 ﻿﻿extern alias UnityEngineCoreModule;
+
 using Rocket.Core.Logging;
 using Rocket.Core.Plugins;
 using Rocket.Unturned.Permissions;
@@ -6,7 +7,7 @@ using Rocket.Unturned.Player;
 using SDG.Unturned;
 using Steamworks;
 using System.Diagnostics;
-using UnityCoreModule = UnityEngineCoreModule.UnityEngine;
+using UnityEngine;
 
 namespace CPULimiter
 {
@@ -15,6 +16,7 @@ namespace CPULimiter
         private static Process? cpuLimit;
         private readonly List<string> playersOnline = new();
         private bool isInitializating = true;
+        private TickrateFreeze? tickrateFreeze;
         public override void LoadPlugin()
         {
             base.LoadPlugin();
@@ -75,6 +77,10 @@ namespace CPULimiter
             }
             else Logger.Log($"[CPULimiter] CPULimiter will limit the process with the PID: {CPULimiterTools.UnturnedProcessId}, consider checking if this is the valid process");
 
+            tickrateFreeze = gameObject.AddComponent<TickrateFreeze>();
+            tickrateFreeze.ServerTickrate = Configuration.Instance.ServerTickrate;
+            tickrateFreeze.DesiredTickrate = Configuration.Instance.TickrateOutStandby;
+
             // Entering in standby
             Task.Delay(Configuration.Instance.SecondsFirstStandby * 1000).ContinueWith((_) =>
             {
@@ -103,13 +109,13 @@ namespace CPULimiter
         private void CheckForPlayers(object? state)
         {
             // If no players enter in standby
-            if (playersOnline.Count == 0 && !CPULimiterTools.IsStandByMode && !isInitializating && Configuration.Instance.CPULimitInStandby > -1)
+            if (playersOnline.Count == 0 && !CPULimiterTools.IsStandByMode && !isInitializating)
             {
                 Logger.Log("[CPULimiter] No players detected entering in standby");
                 EnableCPUStandby(Configuration.Instance.CPULimitInStandby);
             }
             // If have players enter in out standby
-            else if (playersOnline.Count > 0 && CPULimiterTools.IsStandByMode && Configuration.Instance.CPULimitOutStandby > -1)
+            else if (playersOnline.Count > 0 && CPULimiterTools.IsStandByMode)
             {
                 Logger.Log("[CPULimiter] Players detected entering in out standby");
                 EnableCPUOutStandby(Configuration.Instance.CPULimitOutStandby);
@@ -117,7 +123,7 @@ namespace CPULimiter
             // If no players and out standyby disabled
             else if (playersOnline.Count > 0 && CPULimiterTools.IsStandByMode)
             {
-                Logger.Log("[CPULimiter] Players detected disabling cpulimit");
+                Logger.Log("[CPULimiter] Players detected disabling limitcpu");
                 DisableCPUStandby();
             }
         }
@@ -131,48 +137,51 @@ namespace CPULimiter
             }
         }
 
-        // Enable the cpulimiter to the currently unturned process id
+        // Enable the limitcpu to the currently unturned process id
         private void EnableCPUStandby(int amount)
         {
             if (CPULimiterTools.IsStandByMode) return;
 
-            cpuLimit?.Kill();
-            cpuLimit?.Close();
-            cpuLimit?.Dispose();
+            if (amount > -1)
+            {
+                cpuLimit?.Kill();
+                cpuLimit?.Close();
+                cpuLimit?.Dispose();
 
-            // Command
-            string command = $"cpulimit -p {CPULimiterTools.UnturnedProcessId} -l {amount}";
-            if (Configuration.Instance.DebugProcess) Logger.Log($"[CPULimiter] Executing the command: {command}");
+                // Command
+                string command = $"limitcpu -p {CPULimiterTools.UnturnedProcessId} -l {amount}";
+                if (Configuration.Instance.DebugProcess) Logger.Log($"[CPULimiter] Executing the command: {command}");
 
-            // Create the process
-            cpuLimit = new();
-            cpuLimit.StartInfo.FileName = "/bin/bash";
-            cpuLimit.StartInfo.Arguments = $"-c \"{command}\"";
-            cpuLimit.StartInfo.RedirectStandardOutput = true;
-            cpuLimit.StartInfo.RedirectStandardError = true;
-            cpuLimit.StartInfo.UseShellExecute = false;
-            cpuLimit.StartInfo.CreateNoWindow = true;
+                // Create the process
+                cpuLimit = new();
+                cpuLimit.StartInfo.FileName = "/bin/bash";
+                cpuLimit.StartInfo.Arguments = $"-c \"{command}\"";
+                cpuLimit.StartInfo.RedirectStandardOutput = true;
+                cpuLimit.StartInfo.RedirectStandardError = true;
+                cpuLimit.StartInfo.UseShellExecute = false;
+                cpuLimit.StartInfo.CreateNoWindow = true;
 
-            // Process output
-            cpuLimit.OutputDataReceived += (sender, args) => Logger.Log($"[CPULimiter] cpulimit output: {args.Data}");
-            cpuLimit.ErrorDataReceived += (sender, args) => Logger.LogError($"[CPULimiter] cpulimit error: {args.Data}");
+                // Process output
+                cpuLimit.OutputDataReceived += (sender, args) => Logger.Log($"[CPULimiter] limitcpu output: {args.Data}");
+                cpuLimit.ErrorDataReceived += (sender, args) => Logger.LogError($"[CPULimiter] limitcpu error: {args.Data}");
 
-            // Start the process
-            cpuLimit.Start();
+                // Start the process
+                cpuLimit.Start();
 
-            // Read the process output and error
-            cpuLimit.BeginOutputReadLine();
-            cpuLimit.BeginErrorReadLine();
+                // Read the process output and error
+                cpuLimit.BeginOutputReadLine();
+                cpuLimit.BeginErrorReadLine();
+            }
 
             CPULimiterTools.IsStandByMode = true;
 
-            UnityEngine.Application.targetFrameRate = Configuration.Instance.TickrateInStandby;
-            UnityCoreModule.Application.targetFrameRate = Configuration.Instance.TickrateInStandby;
+            if (tickrateFreeze != null)
+                tickrateFreeze.DesiredTickrate = Configuration.Instance.TickrateInStandby;
 
             Logger.Log($"[CPULimiter] CPU Limited to {amount}, Tickrate: {Configuration.Instance.TickrateInStandby}");
         }
 
-        // Disable and dispose the cpu limit process, enable the cpu out standby if enabled
+        // Disable and dispose the limitcpu process, enable the cpu out standby if enabled
         private void DisableCPUStandby()
         {
             cpuLimit?.Kill();
@@ -180,8 +189,8 @@ namespace CPULimiter
             cpuLimit?.Dispose();
             cpuLimit = null;
             CPULimiterTools.IsStandByMode = false;
-            UnityEngine.Application.targetFrameRate = Configuration.Instance.TickrateOutStandby;
-            UnityCoreModule.Application.targetFrameRate = Configuration.Instance.TickrateOutStandby;
+            if (tickrateFreeze != null)
+                tickrateFreeze.DesiredTickrate = Configuration.Instance.TickrateOutStandby;
             if (Configuration.Instance.CPULimitOutStandby > -1)
                 EnableCPUOutStandby(Configuration.Instance.CPULimitOutStandby);
         }
@@ -191,33 +200,37 @@ namespace CPULimiter
         {
             if (!CPULimiterTools.IsStandByMode) return;
 
-            cpuLimit?.Kill();
-            cpuLimit?.Close();
-            cpuLimit?.Dispose();
+            if (amount > -1)
+            {
 
-            // Command
-            string command = $"cpulimit -p {CPULimiterTools.UnturnedProcessId} -l {amount}";
-            if (Configuration.Instance.DebugProcess) Logger.Log($"[CPULimiter] Executing the command: {command}");
+                cpuLimit?.Kill();
+                cpuLimit?.Close();
+                cpuLimit?.Dispose();
 
-            // Create the process
-            cpuLimit = new();
-            cpuLimit.StartInfo.FileName = "/bin/bash";
-            cpuLimit.StartInfo.Arguments = $"-c \"{command}\"";
-            cpuLimit.StartInfo.RedirectStandardOutput = true;
-            cpuLimit.StartInfo.RedirectStandardError = true;
-            cpuLimit.StartInfo.UseShellExecute = false;
-            cpuLimit.StartInfo.CreateNoWindow = true;
+                // Command
+                string command = $"limitcpu -p {CPULimiterTools.UnturnedProcessId} -l {amount}";
+                if (Configuration.Instance.DebugProcess) Logger.Log($"[CPULimiter] Executing the command: {command}");
 
-            // Process output
-            cpuLimit.OutputDataReceived += (sender, args) => Logger.Log($"[CPULimiter] cpulimit output: {args.Data}");
-            cpuLimit.ErrorDataReceived += (sender, args) => Logger.LogError($"[CPULimiter] cpulimit error: {args.Data}");
+                // Create the process
+                cpuLimit = new();
+                cpuLimit.StartInfo.FileName = "/bin/bash";
+                cpuLimit.StartInfo.Arguments = $"-c \"{command}\"";
+                cpuLimit.StartInfo.RedirectStandardOutput = true;
+                cpuLimit.StartInfo.RedirectStandardError = true;
+                cpuLimit.StartInfo.UseShellExecute = false;
+                cpuLimit.StartInfo.CreateNoWindow = true;
 
-            // Start the process
-            cpuLimit.Start();
+                // Process output
+                cpuLimit.OutputDataReceived += (sender, args) => Logger.Log($"[CPULimiter] limitcpu output: {args.Data}");
+                cpuLimit.ErrorDataReceived += (sender, args) => Logger.LogError($"[CPULimiter] limitcpu error: {args.Data}");
 
-            // Read the process output and error
-            cpuLimit.BeginOutputReadLine();
-            cpuLimit.BeginErrorReadLine();
+                // Start the process
+                cpuLimit.Start();
+
+                // Read the process output and error
+                cpuLimit.BeginOutputReadLine();
+                cpuLimit.BeginErrorReadLine();
+            }
 
             CPULimiterTools.IsStandByMode = false;
 
@@ -247,5 +260,42 @@ namespace CPULimiter
         /// Check if the server is on standby mode
         /// </summary>
         public static bool IsStandByMode = false;
+    }
+}
+
+public class TickrateFreeze : MonoBehaviour
+{
+    private int _desiredTickrate = 60;
+    private int _serverTickrate = 60;
+    private int _sleepMs = 0;
+
+    public int DesiredTickrate
+    {
+        get => _desiredTickrate;
+        set
+        {
+            _desiredTickrate = value;
+            RecalculateSleep();
+        }
+    }
+
+    public int ServerTickrate
+    {
+        get => _serverTickrate;
+        set
+        {
+            _serverTickrate = value;
+            RecalculateSleep();
+        }
+    }
+
+    private void RecalculateSleep()
+    {
+        _sleepMs = Mathf.Max(0, (1000 / _desiredTickrate) - (1000 / _serverTickrate));
+    }
+
+    public void Update()
+    {
+        Thread.Sleep(_sleepMs);
     }
 }
