@@ -1,10 +1,10 @@
-# CPULimiter for Linux
+# CPULimiter
 When launching the unturned server this plugin will find the PID of the unturned server process and will 
 limit the cpu usage when standby or not, totally configurable.
 
 This plugin will also change the tickrate of the server when disabled (this should reduce a lot of cpu process in idle).
 
-This plugins does not support cpu limit on windows servers.
+This plugins does not support cpu limit on windows servers, consider leaving CPULimit at -1 if you are running on windows or linux without limitcpu command.
 
 ### Configurations
 
