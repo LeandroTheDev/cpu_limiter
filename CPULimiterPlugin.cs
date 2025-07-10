@@ -188,9 +188,14 @@ namespace CPULimiter
             cpuLimit?.Close();
             cpuLimit?.Dispose();
             cpuLimit = null;
+
             CPULimiterTools.IsStandByMode = false;
+
             if (tickrateFreeze != null)
+            {
                 tickrateFreeze.DesiredTickrate = Configuration.Instance.TickrateOutStandby;
+                Logger.Log($"[CPULimiter] Disabled CPU Standby, Tickrate: {Configuration.Instance.TickrateOutStandby}");
+            }
             if (Configuration.Instance.CPULimitOutStandby > -1)
                 EnableCPUOutStandby(Configuration.Instance.CPULimitOutStandby);
         }
@@ -234,7 +239,7 @@ namespace CPULimiter
 
             CPULimiterTools.IsStandByMode = false;
 
-            Logger.Log($"[CPULimiter] CPU Limited to {amount}");
+            Logger.Log($"[CPULimiter] Out Standby CPU Limited to {amount}");
         }
 
         // Disable and dispose the cpu limit process for not in standby, enable the cpu standby if enabled
@@ -292,6 +297,7 @@ public class TickrateFreeze : MonoBehaviour
     private void RecalculateSleep()
     {
         _sleepMs = Mathf.Max(0, (1000 / _desiredTickrate) - (1000 / _serverTickrate));
+        Logger.Log($"Sleep updated to: {_sleepMs}");
     }
 
     public void Update()
