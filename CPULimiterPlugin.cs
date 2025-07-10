@@ -114,12 +114,6 @@ namespace CPULimiter
                 Logger.Log("[CPULimiter] No players detected entering in standby");
                 EnableCPUStandby(Configuration.Instance.CPULimitInStandby);
             }
-            // If have players enter in out standby
-            else if (playersOnline.Count > 0 && CPULimiterTools.IsStandByMode)
-            {
-                Logger.Log("[CPULimiter] Players detected entering in out standby");
-                EnableCPUOutStandby(Configuration.Instance.CPULimitOutStandby);
-            }
             // If no players and out standyby disabled
             else if (playersOnline.Count > 0 && CPULimiterTools.IsStandByMode)
             {
@@ -130,7 +124,7 @@ namespace CPULimiter
         // Event for player trying to connect
         private void PlayerTryingToConnect(CSteamID player, ref ESteamRejection? rejectionReason)
         {
-            if (cpuLimit != null)
+            if (CPULimiterTools.IsStandByMode)
             {
                 Logger.Log("[CPULimiter] Player trying to connect to the server, disabling standby");
                 DisableCPUStandby();
@@ -194,8 +188,9 @@ namespace CPULimiter
             if (tickrateFreeze != null)
             {
                 tickrateFreeze.DesiredTickrate = Configuration.Instance.TickrateOutStandby;
-                Logger.Log($"[CPULimiter] Disabled CPU Standby, Tickrate: {Configuration.Instance.TickrateOutStandby}");
+                Logger.Log($"[CPULimiter] Out Standby Tickrate: {Configuration.Instance.TickrateOutStandby}");
             }
+
             if (Configuration.Instance.CPULimitOutStandby > -1)
                 EnableCPUOutStandby(Configuration.Instance.CPULimitOutStandby);
         }
